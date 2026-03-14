@@ -1,24 +1,32 @@
-# Smart Task Manager (STM)
+# Smart Task Manager 🚀
 
-Smart Task Manager is a feature-rich, highly optimized Flutter application designed to boost productivity. It helps users organize their daily activities, track productivity percentages, and never miss a deadline with precise background alarms and notifications.
+A highly functional and professional Task Management Flutter application. This project was developed to showcase advanced state management, local database handling, and interactive UI/UX design.
 
-## 🚀 Key Features
+**Built for CodeChine Internship Assignment.**
 
-* **Advanced Task Management:** Create, read, update, and delete (CRUD) tasks effortlessly.
-* **Smart Categorization & Priority:** Organize tasks by categories (Work, Study, Personal) and assign priority levels (0-10).
-* **Precise Background Alarms:** Utilizes `awesome_notifications` with `SCHEDULE_EXACT_ALARM` permissions to wake up the screen and ring exact alarms even when the app is completely terminated/killed.
-* **Dynamic Productivity Dashboard:** Real-time calculation of pending vs. completed tasks with a visual circular progress indicator.
-* **Persistent Theme Switching:** Seamlessly toggle between Light and Dark modes. The user's preference is saved locally and applied automatically on the next launch.
-* **Pre-emptive Reminders:** Automated notification alerts at 24-hour, 10-hour, and 1-hour intervals before the actual deadline.
+## ✨ Key Features
 
-## 🛠️ Tech Stack & Architecture
+* **Advanced Task Management:** Create, Read, Update, and Delete (CRUD) tasks effortlessly.
+* **Sub-Tasks & Checklists:** Break down large tasks into smaller sub-tasks. Main task automatically completes when all sub-tasks are checked!
+* **Productivity Analytics:** Visual bar charts tracking your last 7 days of productivity using `fl_chart`.
+* **Interactive Calendar View:** A dedicated calendar screen to view tasks scheduled for specific dates using `table_calendar`.
+* **Smart Dashboard:** * Filter tasks by category (Work, Study, Personal).
+   * Toggle between Pending and Completed tasks.
+   * Sort tasks by Time or Priority.
+   * Real-time productivity circular progress indicator.
+* **Local Storage:** All tasks and sub-tasks are securely saved offline using `sqflite`.
+* **Push Notifications:** Scheduled local reminders for task deadlines using `awesome_notifications`.
+* **Dark & Light Mode:** Fully supported theme toggling for better user experience.
+
+## 🛠️ Tech Stack & Packages Used
 
 * **Framework:** Flutter (Dart)
-* **State Management:** Provider (MultiProvider architecture)
-* **Local Database:** SQLite (`sqflite` package) for offline data persistence
-* **Notifications & Alarms:** `awesome_notifications`
-* **Local Storage:** `shared_preferences` for theme state management
-* **Architecture:** Clean Architecture with separate modules for Dashboard, Task, Notification, and Core configuration.
+* **State Management:** Provider (`provider`)
+* **Local Database:** SQLite (`sqflite`, `path`)
+* **Charts & Analytics:** FL Chart (`fl_chart`)
+* **Calendar:** Table Calendar (`table_calendar`)
+* **Notifications:** Awesome Notifications (`awesome_notifications`)
+* **Date & Time Formatting:** Intl (`intl`)
 
 ## 📱 Screenshots
 <p align="center">
@@ -32,11 +40,13 @@ Smart Task Manager is a feature-rich, highly optimized Flutter application desig
   <img src="assets/screenshots/dark_CT.jpeg" width="22%" />
   <img src="assets/screenshots/dark_read_task.jpeg" width="22%" />
 </p>
-## ⚙️ How to Run the App
+
+## 🚀 How to Run the Project
 
 1. Clone the repository:
    ```bash
-   git clone [https://github.com/yourusername/smart-task-manager.git](https://github.com/yourusername/smart-task-manager.git)
+   git clone [https://github.com/your-username/smart-task-manager.git](https://github.com/your-username/smart-task-manager.git)
+
 2. Navigate to the project directory:
 
    ```bash

@@ -11,6 +11,8 @@ class AddTaskController extends ChangeNotifier {
   int priority = 5;
   String selectedCategory = 'Work';
 
+  List<Map<String, dynamic>> _subTasksData = [];
+
   bool get isValid => titleController.text.trim().isNotEmpty && selectedDate != null && selectedTime != null;
 
   void updateDate(DateTime date) {
@@ -33,6 +35,10 @@ class AddTaskController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setSubTasksData(List<Map<String, dynamic>> data) {
+    _subTasksData = data;
+  }
+
   Future<bool> saveTask() async {
     if (!isValid) return false;
 
@@ -51,6 +57,11 @@ class AddTaskController extends ChangeNotifier {
       priority: priority,
       category: selectedCategory,
       isCompleted: false,
+      subTasks: _subTasksData.map((data) => SubTask(
+        title: data['title'] as String,
+        deadline: data['deadline'] as DateTime?,
+        isCompleted: false,
+      )).toList(),
     );
 
     final savedTask = await DBHelper.instance.insertTask(task);
@@ -66,6 +77,7 @@ class AddTaskController extends ChangeNotifier {
     selectedTime = null;
     priority = 5;
     selectedCategory = 'Work';
+    _subTasksData.clear();
     notifyListeners();
   }
 

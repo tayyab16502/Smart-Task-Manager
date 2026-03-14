@@ -6,6 +6,11 @@ import '../../../core/constants/theme.dart';
 import '../../../core/controllers/theme_controller.dart';
 import '../controllers/add_task_controller.dart';
 
+class SubTaskInput {
+  final TextEditingController controller = TextEditingController();
+  DateTime? deadline;
+}
+
 class AddTaskScreen extends StatefulWidget {
   const AddTaskScreen({super.key});
 
@@ -14,6 +19,7 @@ class AddTaskScreen extends StatefulWidget {
 }
 
 class _AddTaskScreenState extends State<AddTaskScreen> {
+  final List<SubTaskInput> _subTaskInputs = [];
 
   @override
   void initState() {
@@ -21,6 +27,14 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AddTaskController>().reset();
     });
+  }
+
+  @override
+  void dispose() {
+    for (var input in _subTaskInputs) {
+      input.controller.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _selectDate(bool isDark) async {
@@ -50,6 +64,40 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
     );
     if (picked != null && mounted) {
       context.read<AddTaskController>().updateTime(picked);
+    }
+  }
+
+  Future<void> _selectSubTaskDeadline(int index, bool isDark) async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2100),
+      builder: (context, child) => Theme(
+          data: isDark ? AppTheme.darkTheme : AppTheme.lightTheme,
+          child: child!
+      ),
+    );
+    if (pickedDate != null && mounted) {
+      final pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+        builder: (context, child) => Theme(
+            data: isDark ? AppTheme.darkTheme : AppTheme.lightTheme,
+            child: child!
+        ),
+      );
+      if (pickedTime != null && mounted) {
+        setState(() {
+          _subTaskInputs[index].deadline = DateTime(
+            pickedDate.year,
+            pickedDate.month,
+            pickedDate.day,
+            pickedTime.hour,
+            pickedTime.minute,
+          );
+        });
+      }
     }
   }
 
@@ -240,12 +288,108 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                 );
               }).toList(),
             ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Sub-tasks (Optional)', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: theme.colorScheme.onSurface)),
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _subTaskInputs.add(SubTaskInput());
+                    });
+                  },
+                  icon: const Icon(CupertinoIcons.add, size: 16),
+                  label: const Text('Add'),
+                  style: TextButton.styleFrom(foregroundColor: AppTheme.teal),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ..._subTaskInputs.asMap().entries.map((entry) {
+              int idx = entry.key;
+              SubTaskInput input = entry.value;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16.0),
+                      child: const Icon(CupertinoIcons.circle, size: 16, color: Colors.grey),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextField(
+                            controller: input.controller,
+                            style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface),
+                            decoration: InputDecoration(
+                              hintText: 'Sub-task ${idx + 1}...',
+                              contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: theme.dividerColor),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: theme.dividerColor),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(color: AppTheme.teal),
+                              ),
+                            ),
+                          ),
+                          if (input.deadline != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'Deadline: ${DateFormat('MMM dd, hh:mm a').format(input.deadline!)}',
+                              style: const TextStyle(fontSize: 11, color: AppTheme.amber, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(
+                          input.deadline == null ? CupertinoIcons.calendar_badge_plus : CupertinoIcons.calendar_today,
+                          color: input.deadline == null ? theme.hintColor : AppTheme.teal,
+                          size: 22
+                      ),
+                      onPressed: () => _selectSubTaskDeadline(idx, isDark),
+                    ),
+                    IconButton(
+                      icon: const Icon(CupertinoIcons.delete, color: Colors.redAccent, size: 20),
+                      onPressed: () {
+                        setState(() {
+                          input.controller.dispose();
+                          _subTaskInputs.removeAt(idx);
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              );
+            }),
             const SizedBox(height: 48),
             SizedBox(
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
                 onPressed: controller.isValid ? () async {
+                  List<Map<String, dynamic>> subTasksData = _subTaskInputs
+                      .where((item) => item.controller.text.trim().isNotEmpty)
+                      .map((item) => {
+                    'title': item.controller.text.trim(),
+                    'deadline': item.deadline,
+                  })
+                      .toList();
+
+                  controller.setSubTasksData(subTasksData);
+
                   final success = await controller.saveTask();
                   if (success && context.mounted) Navigator.pop(context, true);
                 } : null,

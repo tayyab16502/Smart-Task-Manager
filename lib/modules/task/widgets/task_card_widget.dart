@@ -141,6 +141,27 @@ class _TaskCardWidgetState extends State<TaskCardWidget> {
                           ),
                         ],
                       ),
+
+                      // --- NAYA SECTION: SUB-TASK INDICATOR ---
+                      if (task.subTasks.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(CupertinoIcons.list_bullet, size: 12, color: theme.hintColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${task.subTasks.where((s) => s.isCompleted).length}/${task.subTasks.length} Sub-tasks',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: theme.hintColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      // ----------------------------------------
+
                     ],
                   ),
                 ),

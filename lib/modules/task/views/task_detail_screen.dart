@@ -117,7 +117,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 fontWeight: FontWeight.bold,
                 height: 1.2,
                 color: task.isCompleted ? theme.hintColor : theme.colorScheme.onSurface,
-                decoration: TextDecoration.none, // Strike-through line hata di gayi hai
+                decoration: TextDecoration.none,
               ),
             ),
             const SizedBox(height: 24),
@@ -182,6 +182,89 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 ),
               ),
             ),
+
+            if (task.subTasks.isNotEmpty) ...[
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Sub-tasks', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface)),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppTheme.teal.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${task.subTasks.where((s) => s.isCompleted).length} / ${task.subTasks.length}',
+                      style: const TextStyle(fontSize: 14, color: AppTheme.teal, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onSurface.withOpacity(0.03),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: theme.dividerColor),
+                ),
+                child: Column(
+                  children: task.subTasks.asMap().entries.map((entry) {
+                    final int index = entry.key;
+                    final subTask = entry.value;
+                    return CheckboxListTile(
+                      title: Text(
+                        subTask.title,
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: subTask.isCompleted ? theme.hintColor : theme.colorScheme.onSurface,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                      // NAYA SECTION: SUB-TASK DEADLINE
+                      subtitle: subTask.deadline != null
+                          ? Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Row(
+                          children: [
+                            Icon(
+                              CupertinoIcons.clock,
+                              size: 12,
+                              color: subTask.isCompleted ? theme.hintColor : AppTheme.amber,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              DateFormat('MMM dd, hh:mm a').format(subTask.deadline!),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: subTask.isCompleted ? theme.hintColor : AppTheme.amber,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                          : null,
+                      // ---------------------------------
+                      value: subTask.isCompleted,
+                      activeColor: AppTheme.teal,
+                      checkColor: theme.scaffoldBackgroundColor,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+                      dense: true,
+                      onChanged: (bool? value) {
+                        if (value != null) {
+                          controller.toggleSubTask(index, value);
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+
             const SizedBox(height: 48),
             if (!task.isCompleted)
               SizedBox(

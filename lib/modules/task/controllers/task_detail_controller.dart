@@ -16,6 +16,44 @@ class TaskDetailController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- NAYA FUNCTION: SUB-TASKS HANDLE KARNE KE LIYE ---
+  Future<void> toggleSubTask(int index, bool value) async {
+    if (currentTask == null) return;
+
+    // Purani list ki ek copy banate hain
+    List<SubTask> updatedSubTasks = List.from(currentTask!.subTasks);
+
+    // Specific sub-task ka status update karte hain
+    updatedSubTasks[index] = updatedSubTasks[index].copyWith(isCompleted: value);
+
+    // Check karte hain ke kya saare sub-tasks tick ho gaye hain?
+    bool areAllSubTasksCompleted = updatedSubTasks.isNotEmpty &&
+        updatedSubTasks.every((st) => st.isCompleted);
+
+    // Naya task model banate hain updated list ke sath
+    final updatedTask = currentTask!.copyWith(
+      subTasks: updatedSubTasks,
+      // Agar saare sub-tasks complete hain, to main task ko bhi complete kar do
+      isCompleted: areAllSubTasksCompleted ? true : currentTask!.isCompleted,
+    );
+
+    // Database mein save karte hain
+    await DBHelper.instance.updateTask(updatedTask);
+    currentTask = updatedTask;
+
+    // Agar saare sub-tasks tick hone ki wajah se main task complete hua hai,
+    // to uski notifications cancel kar dein
+    if (areAllSubTasksCompleted && currentTask!.id != null) {
+      await AwesomeNotifications().cancel(currentTask!.id!);
+      await AwesomeNotifications().cancel(currentTask!.id! * 10 + 1);
+      await AwesomeNotifications().cancel(currentTask!.id! * 10 + 2);
+      await AwesomeNotifications().cancel(currentTask!.id! * 10 + 3);
+    }
+
+    notifyListeners();
+  }
+  // -----------------------------------------------------
+
   Future<void> markAsComplete() async {
     if (currentTask == null) return;
 

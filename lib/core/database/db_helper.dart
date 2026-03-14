@@ -20,8 +20,9 @@ class DBHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2, // Version updated for Sub-tasks feature
       onCreate: _createDB,
+      onUpgrade: _upgradeDB, // Migration handle karne ke liye
     );
   }
 
@@ -34,9 +35,17 @@ class DBHelper {
         dateTime TEXT NOT NULL,
         priority INTEGER NOT NULL,
         category TEXT NOT NULL,
-        isCompleted INTEGER NOT NULL
+        isCompleted INTEGER NOT NULL,
+        subTasks TEXT DEFAULT '[]' 
       )
     ''');
+  }
+
+  // Yeh function purane users ka data safe rakhne ke liye hai
+  Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute("ALTER TABLE tasks ADD COLUMN subTasks TEXT DEFAULT '[]'");
+    }
   }
 
   Future<TaskModel> insertTask(TaskModel task) async {

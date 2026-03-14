@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +11,7 @@ import '../../task/views/edit_task_screen.dart';
 import '../../task/widgets/task_card_widget.dart';
 import '../../notification/views/notification_screen.dart';
 import '../../notification/controllers/notification_controller.dart';
+import 'analytics_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -76,33 +78,74 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(controller.greeting, style: TextStyle(fontSize: 14, color: theme.hintColor)),
-                            const SizedBox(height: 4),
-                            Text('My Dashboard', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface)),
-                          ],
+                        // --- FIX: Wrap with Expanded to prevent overflow ---
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                controller.greeting,
+                                style: TextStyle(fontSize: 14, color: theme.hintColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'My Dashboard',
+                                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
+                        // ---------------------------------------------------
                         Row(
+                          mainAxisSize: MainAxisSize.min, // FIX: Ensure Row takes minimum required space
                           children: [
                             IconButton(
                               icon: Icon(
                                 isDark ? Icons.light_mode : Icons.dark_mode,
                                 color: AppTheme.teal,
                               ),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
                               onPressed: () {
                                 context.read<ThemeController>().toggleTheme();
                               },
                             ),
                             const SizedBox(width: 8),
+
+                            // --- NAYA BUTTON: CALENDAR & ANALYTICS ---
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const AnalyticsScreen()),
+                                );
+                              },
+                              child: Container(
+                                height: 44,
+                                width: 44,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.violet.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: AppTheme.violet.withOpacity(0.3)),
+                                ),
+                                child: const Icon(CupertinoIcons.calendar, color: AppTheme.violet, size: 20),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // -----------------------------------------
+
                             GestureDetector(
                               onTap: () async {
-                                final result = await Navigator.push(
+                                await Navigator.push(
                                   context,
                                   MaterialPageRoute(builder: (context) => const NotificationScreen()),
                                 );
-                                if (result == true) {
+                                // FIX: Removed 'if (result == true)' so it always updates
+                                if (context.mounted) {
                                   context.read<DashboardController>().fetchTasks();
                                   context.read<NotificationController>().loadNotifications();
                                 }
@@ -322,11 +365,12 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                     return TaskCardWidget(
                       task: task,
                       onTap: () async {
-                        final result = await Navigator.push(
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) => TaskDetailScreen(task: task)),
                         );
-                        if (result == true) {
+                        // FIX: Removed 'if (result == true)' so it always updates
+                        if (context.mounted) {
                           context.read<DashboardController>().fetchTasks();
                           context.read<NotificationController>().loadNotifications();
                         }
@@ -338,11 +382,12 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
                         }
                       },
                       onEdit: () async {
-                        final result = await Navigator.push(
+                        await Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) => EditTaskScreen(task: task)),
                         );
-                        if (result == true) {
+                        // FIX: Removed 'if (result == true)' so it always updates
+                        if (context.mounted) {
                           context.read<DashboardController>().fetchTasks();
                           context.read<NotificationController>().loadNotifications();
                         }
@@ -377,11 +422,12 @@ class _DashboardScreenState extends State<DashboardScreen> with WidgetsBindingOb
         ),
         child: FloatingActionButton(
           onPressed: () async {
-            final result = await Navigator.push(
+            await Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const AddTaskScreen()),
             );
-            if (result == true) {
+            // FIX: Removed 'if (result == true)' so it always updates
+            if (context.mounted) {
               context.read<DashboardController>().fetchTasks();
               context.read<NotificationController>().loadNotifications();
             }

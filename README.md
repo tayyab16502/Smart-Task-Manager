@@ -47,7 +47,7 @@ A highly functional and professional Task Management Flutter application. This p
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/smart-task-manager.git
+   git clone https://github.com/tayyab16502/smart-task-manager.git
 
 2. Navigate to the project directory:
 

@@ -41,13 +41,23 @@ class TaskDetailController extends ChangeNotifier {
     await DBHelper.instance.updateTask(updatedTask);
     currentTask = updatedTask;
 
+    // NAYA LOGIC: Agar sub-task complete hua hai to uski specific notification cancel karein
+    if (value && currentTask!.id != null) {
+      await AwesomeNotifications().cancel(currentTask!.id! * 1000 + index);
+    }
+
     // Agar saare sub-tasks tick hone ki wajah se main task complete hua hai,
-    // to uski notifications cancel kar dein
+    // to uski aur uske sub-tasks ki notifications cancel kar dein
     if (areAllSubTasksCompleted && currentTask!.id != null) {
       await AwesomeNotifications().cancel(currentTask!.id!);
       await AwesomeNotifications().cancel(currentTask!.id! * 10 + 1);
       await AwesomeNotifications().cancel(currentTask!.id! * 10 + 2);
       await AwesomeNotifications().cancel(currentTask!.id! * 10 + 3);
+
+      // Saare sub-tasks ki notifications bhi cancel kar dein ehtiyatan
+      for (int i = 0; i < currentTask!.subTasks.length; i++) {
+        await AwesomeNotifications().cancel(currentTask!.id! * 1000 + i);
+      }
     }
 
     notifyListeners();
@@ -66,6 +76,11 @@ class TaskDetailController extends ChangeNotifier {
       await AwesomeNotifications().cancel(currentTask!.id! * 10 + 1);
       await AwesomeNotifications().cancel(currentTask!.id! * 10 + 2);
       await AwesomeNotifications().cancel(currentTask!.id! * 10 + 3);
+
+      // NAYA LOGIC: Main task complete hone par saare sub-tasks ki notifications bhi cancel karein
+      for (int i = 0; i < currentTask!.subTasks.length; i++) {
+        await AwesomeNotifications().cancel(currentTask!.id! * 1000 + i);
+      }
     }
 
     notifyListeners();
@@ -79,6 +94,11 @@ class TaskDetailController extends ChangeNotifier {
       await AwesomeNotifications().cancel(currentTask!.id! * 10 + 1);
       await AwesomeNotifications().cancel(currentTask!.id! * 10 + 2);
       await AwesomeNotifications().cancel(currentTask!.id! * 10 + 3);
+
+      // NAYA LOGIC: Task delete hone par saare sub-tasks ki notifications bhi cancel karein
+      for (int i = 0; i < currentTask!.subTasks.length; i++) {
+        await AwesomeNotifications().cancel(currentTask!.id! * 1000 + i);
+      }
     }
   }
 }

@@ -82,20 +82,40 @@ class NotificationService {
     }
   }
 
+  // NAYA FUNCTION: Task create hotay hi fawran notification bhejne ke liye
+  static Future<void> showTaskCreatedNotification(TaskModel task) async {
+    await AwesomeNotifications().createNotification(
+      content: NotificationContent(
+        id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+        channelKey: 'task_reminders',
+        title: 'Task Successfully Created! 🎉',
+        body: 'Your task "${task.title}" has been added to the list.',
+      ),
+    );
+  }
+
   static Future<void> scheduleTaskNotifications(TaskModel task) async {
     final int id = task.id ?? task.hashCode;
 
+    // Purani notifications cancel karna
     await AwesomeNotifications().cancel(id);
     await AwesomeNotifications().cancel(id * 10 + 1);
     await AwesomeNotifications().cancel(id * 10 + 2);
     await AwesomeNotifications().cancel(id * 10 + 3);
 
+    // Sub-tasks ki notifications bhi pehle cancel kar dein taake purani refresh ho jayen
+    for (int i = 0; i < task.subTasks.length; i++) {
+      await AwesomeNotifications().cancel(id * 1000 + i);
+    }
+
+    // Agar task poora ho chuka hai, to notification schedule nahi karni
     if (task.isCompleted) return;
 
     final DateTime deadline = task.dateTime;
     final DateTime now = DateTime.now();
     final Map<String, String> payload = {'taskId': id.toString()};
 
+    // 1. Main Task ki Deadline Notification
     if (deadline.isAfter(now)) {
       await AwesomeNotifications().createNotification(
         content: NotificationContent(
@@ -123,6 +143,31 @@ class NotificationService {
         ),
       );
     }
+
+    // NAYA SECTION: Sub-tasks ki Notifications Schedule Karna
+    for (int i = 0; i < task.subTasks.length; i++) {
+      final subTask = task.subTasks[i];
+      final int subTaskId = id * 1000 + i;
+
+      if (!subTask.isCompleted && subTask.deadline != null) {
+        if (subTask.deadline!.isAfter(now)) {
+          await AwesomeNotifications().createNotification(
+            content: NotificationContent(
+              id: subTaskId,
+              channelKey: 'task_reminders',
+              title: 'Sub-task Deadline! 🎯',
+              body: 'Time is up for "${subTask.title}" in task "${task.title}"',
+            ),
+            schedule: NotificationCalendar.fromDate(
+              date: subTask.deadline!,
+              allowWhileIdle: true,
+              preciseAlarm: true,
+            ),
+          );
+        }
+      }
+    }
+    // ------------------------------------------
 
     final DateTime oneHourLeft = deadline.subtract(const Duration(hours: 1));
     if (oneHourLeft.isAfter(now)) {

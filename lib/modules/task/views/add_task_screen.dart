@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/theme.dart';
 import '../../../core/controllers/theme_controller.dart';
 import '../controllers/add_task_controller.dart';
+import '../../../core/database/db_helper.dart';
+import '../models/task_model.dart';
 
 class SubTaskInput {
   final TextEditingController controller = TextEditingController();
@@ -68,16 +70,64 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
   }
 
   Future<void> _selectSubTaskDeadline(int index, bool isDark) async {
+    final controller = context.read<AddTaskController>();
+    DateTime? mainDeadline;
+
+    if (controller.selectedDate != null && controller.selectedTime != null) {
+      mainDeadline = DateTime(
+        controller.selectedDate!.year,
+        controller.selectedDate!.month,
+        controller.selectedDate!.day,
+        controller.selectedTime!.hour,
+        controller.selectedTime!.minute,
+      );
+    }
+
+    DateTime minAllowedDateTime = DateTime.now();
+    for (int i = index - 1; i >= 0; i--) {
+      if (_subTaskInputs[i].deadline != null) {
+        if (_subTaskInputs[i].deadline!.isAfter(minAllowedDateTime)) {
+          minAllowedDateTime = _subTaskInputs[i].deadline!;
+        }
+        break;
+      }
+    }
+
+    DateTime maxAllowedDateTime = mainDeadline ?? DateTime(2100);
+    for (int i = index + 1; i < _subTaskInputs.length; i++) {
+      if (_subTaskInputs[i].deadline != null) {
+        if (_subTaskInputs[i].deadline!.isBefore(maxAllowedDateTime)) {
+          maxAllowedDateTime = _subTaskInputs[i].deadline!;
+        }
+        break;
+      }
+    }
+
+    DateTime firstAllowedDate = DateTime(minAllowedDateTime.year, minAllowedDateTime.month, minAllowedDateTime.day);
+    DateTime lastAllowedDate = DateTime(maxAllowedDateTime.year, maxAllowedDateTime.month, maxAllowedDateTime.day);
+
+    if (lastAllowedDate.isBefore(firstAllowedDate)) {
+      firstAllowedDate = lastAllowedDate;
+    }
+
+    DateTime initialD = DateTime.now();
+    if (initialD.isAfter(lastAllowedDate)) {
+      initialD = lastAllowedDate;
+    } else if (initialD.isBefore(firstAllowedDate)) {
+      initialD = firstAllowedDate;
+    }
+
     final pickedDate = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2100),
+      initialDate: initialD,
+      firstDate: firstAllowedDate,
+      lastDate: lastAllowedDate,
       builder: (context, child) => Theme(
           data: isDark ? AppTheme.darkTheme : AppTheme.lightTheme,
           child: child!
       ),
     );
+
     if (pickedDate != null && mounted) {
       final pickedTime = await showTimePicker(
         context: context,
@@ -88,14 +138,42 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
         ),
       );
       if (pickedTime != null && mounted) {
-        setState(() {
-          _subTaskInputs[index].deadline = DateTime(
-            pickedDate.year,
-            pickedDate.month,
-            pickedDate.day,
-            pickedTime.hour,
-            pickedTime.minute,
+        final subTaskDateTime = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+
+        if (subTaskDateTime.isBefore(minAllowedDateTime)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Sub-task cannot be scheduled before the previous sub-task (${DateFormat('MMM dd, hh:mm a').format(minAllowedDateTime)})!'
+              ),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
           );
+          return;
+        }
+
+        if (subTaskDateTime.isAfter(maxAllowedDateTime)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Sub-task cannot be scheduled after the allowed limit (${DateFormat('MMM dd, hh:mm a').format(maxAllowedDateTime)})!'
+              ),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+
+        setState(() {
+          _subTaskInputs[index].deadline = subTaskDateTime;
         });
       }
     }
@@ -359,7 +437,18 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                           color: input.deadline == null ? theme.hintColor : AppTheme.teal,
                           size: 22
                       ),
-                      onPressed: () => _selectSubTaskDeadline(idx, isDark),
+                      onPressed: () {
+                        if (controller.selectedDate == null || controller.selectedTime == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Please select Main Task Date & Time first!'),
+                              backgroundColor: Colors.redAccent,
+                            ),
+                          );
+                        } else {
+                          _selectSubTaskDeadline(idx, isDark);
+                        }
+                      },
                     ),
                     IconButton(
                       icon: const Icon(CupertinoIcons.delete, color: Colors.redAccent, size: 20),
@@ -379,7 +468,75 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
               width: double.infinity,
               height: 56,
               child: ElevatedButton(
-                onPressed: controller.isValid ? () async {
+                onPressed: () async {
+                  if (!controller.isValid) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please set Task Name, Date, and Time!'),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                    return;
+                  }
+
+                  bool missingSubTaskDeadline = false;
+                  for (var input in _subTaskInputs) {
+                    if (input.controller.text.trim().isNotEmpty && input.deadline == null) {
+                      missingSubTaskDeadline = true;
+                      break;
+                    }
+                  }
+
+                  if (missingSubTaskDeadline) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please set a deadline for all added sub-tasks!'),
+                        backgroundColor: Colors.redAccent,
+                      ),
+                    );
+                    return;
+                  }
+
+                  final String newTaskTitle = controller.titleController.text.trim();
+                  final List<TaskModel> allTasks = await DBHelper.instance.fetchAllTasks();
+                  TaskModel? duplicateTask;
+
+                  for (var task in allTasks) {
+                    if (task.title.toLowerCase() == newTaskTitle.toLowerCase()) {
+                      duplicateTask = task;
+                      break;
+                    }
+                  }
+
+                  if (duplicateTask != null && context.mounted) {
+                    final String formattedDeadline = DateFormat('MMM dd, yyyy - hh:mm a').format(duplicateTask.dateTime);
+                    final bool? proceed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: theme.cardColor,
+                        title: Text('Duplicate Task Found', style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.bold)),
+                        content: Text(
+                          'A task named "$newTaskTitle" already exists in your list with a deadline of $formattedDeadline.\n\nAre you sure you want to create another task with the exact same name? We suggest changing the name to avoid confusion.',
+                          style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.8)),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('No, Change Name', style: TextStyle(color: Colors.redAccent)),
+                          ),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Yes, Create Anyway', style: TextStyle(color: AppTheme.teal)),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (proceed != true) {
+                      return;
+                    }
+                  }
+
                   List<Map<String, dynamic>> subTasksData = _subTaskInputs
                       .where((item) => item.controller.text.trim().isNotEmpty)
                       .map((item) => {
@@ -392,10 +549,9 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
 
                   final success = await controller.saveTask();
                   if (success && context.mounted) Navigator.pop(context, true);
-                } : null,
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.teal,
-                  disabledBackgroundColor: theme.dividerColor,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   elevation: 0,
                 ),
@@ -404,7 +560,7 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: controller.isValid ? theme.scaffoldBackgroundColor : theme.hintColor,
+                    color: theme.scaffoldBackgroundColor,
                   ),
                 ),
               ),

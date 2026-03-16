@@ -63,6 +63,7 @@ class NotificationService {
   @pragma("vm:entry-point")
   static Future<void> onActionReceivedMethod(ReceivedAction receivedAction) async {
     final String? taskIdStr = receivedAction.payload?['taskId'];
+
     if (taskIdStr != null) {
       final int taskId = int.parse(taskIdStr);
       final dbTasks = await DBHelper.instance.fetchAllTasks();
@@ -71,18 +72,48 @@ class NotificationService {
       if (taskIndex != -1) {
         final task = dbTasks[taskIndex];
 
+        // Main Task Complete Action
         if (receivedAction.buttonKeyPressed == 'complete_action') {
           await DBHelper.instance.updateTask(task.copyWith(isCompleted: true));
-        } else if (receivedAction.buttonKeyPressed == 'delay_action') {
+        }
+        // Main Task Delay Action
+        else if (receivedAction.buttonKeyPressed == 'delay_action') {
           final delayedTask = task.copyWith(dateTime: task.dateTime.add(const Duration(minutes: 15)));
           await DBHelper.instance.updateTask(delayedTask);
           await scheduleTaskNotifications(delayedTask);
+        }
+        // NAYA SECTION: Sub-task Complete Action directly from Notification
+        else if (receivedAction.buttonKeyPressed == 'complete_subtask_action') {
+          final String? subTaskIndexStr = receivedAction.payload?['subTaskIndex'];
+          if (subTaskIndexStr != null) {
+            final int subIndex = int.parse(subTaskIndexStr);
+
+            List<SubTask> updatedSubTasks = List.from(task.subTasks);
+            updatedSubTasks[subIndex] = updatedSubTasks[subIndex].copyWith(isCompleted: true);
+
+            bool areAllCompleted = updatedSubTasks.isNotEmpty && updatedSubTasks.every((st) => st.isCompleted);
+
+            final updatedTask = task.copyWith(
+              subTasks: updatedSubTasks,
+              isCompleted: areAllCompleted ? true : task.isCompleted,
+            );
+
+            await DBHelper.instance.updateTask(updatedTask);
+
+            // Agar saare sub-tasks puray ho gaye to main notifications cancel kar dein
+            if (areAllCompleted) {
+              await AwesomeNotifications().cancel(taskId);
+              await AwesomeNotifications().cancel(taskId * 10 + 1);
+              await AwesomeNotifications().cancel(taskId * 10 + 2);
+              await AwesomeNotifications().cancel(taskId * 10 + 3);
+            }
+          }
         }
       }
     }
   }
 
-  // NAYA FUNCTION: Task create hotay hi fawran notification bhejne ke liye
+  // Task create hotay hi fawran notification bhejne ke liye
   static Future<void> showTaskCreatedNotification(TaskModel task) async {
     await AwesomeNotifications().createNotification(
       content: NotificationContent(
@@ -144,7 +175,7 @@ class NotificationService {
       );
     }
 
-    // NAYA SECTION: Sub-tasks ki Notifications Schedule Karna
+    // UPDATE: Sub-tasks ki Notifications ab proper Alarms ban chuki hain
     for (int i = 0; i < task.subTasks.length; i++) {
       final subTask = task.subTasks[i];
       final int subTaskId = id * 1000 + i;
@@ -154,10 +185,24 @@ class NotificationService {
           await AwesomeNotifications().createNotification(
             content: NotificationContent(
               id: subTaskId,
-              channelKey: 'task_reminders',
-              title: 'Sub-task Deadline! 🎯',
-              body: 'Time is up for "${subTask.title}" in task "${task.title}"',
+              channelKey: 'task_alarms', // Ab yeh reminder nahi, full alarm hai
+              title: '⏰ Sub-task Time is up!',
+              body: 'Your sub-task "${subTask.title}" is due now!',
+              category: NotificationCategory.Alarm,
+              wakeUpScreen: true,
+              fullScreenIntent: true,
+              criticalAlert: true,
+              locked: true,
+              autoDismissible: false,
+              timeoutAfter: const Duration(minutes: 1),
+              payload: {
+                'taskId': id.toString(),
+                'subTaskIndex': i.toString(), // Index pass kiya taake direct complete ho sake
+              },
             ),
+            actionButtons: [
+              NotificationActionButton(key: 'complete_subtask_action', label: 'Mark Sub-task Complete'),
+            ],
             schedule: NotificationCalendar.fromDate(
               date: subTask.deadline!,
               allowWhileIdle: true,
